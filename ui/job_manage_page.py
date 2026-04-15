@@ -28,7 +28,7 @@ class JobManagePage(QWidget):
         jd_layout.addWidget(self.jd)
         jd_group.setLayout(jd_layout)
 
-        self.save_btn = QPushButton("保存岗位（后台自动解析：此处仅UI演示）")
+        self.save_btn = QPushButton("保存岗位（后台自动解析）")
         self.save_btn.clicked.connect(self.save_job)
 
         layout = QVBoxLayout()

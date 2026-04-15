@@ -6,6 +6,7 @@ from ui.resume_manage_page import ResumeManagePage
 from ui.job_manage_page import JobManagePage
 from ui.resume_generate_page import ResumeGeneratePage
 from ui.version_manage_page import VersionManagePage
+from ui.home_page import HomePage
 
 
 
@@ -19,6 +20,7 @@ class MainWindow(QMainWindow):
 
         self.nav = QListWidget()
         self.nav.addItems([
+            "系统首页",
             "个人信息管理",
             "简历管理",
             "岗位定制",
@@ -27,13 +29,14 @@ class MainWindow(QMainWindow):
         ])
 
         self.stack = QStackedWidget()
+        self.page_home = HomePage(self.state)
         self.page_profile = UserProfilePage(self.state)
         self.page_resume = ResumeManagePage(self.state)
         self.page_job = JobManagePage(self.state)
         self.page_generate = ResumeGeneratePage(self.state)
         self.page_versions = VersionManagePage(self.state)
 
-
+        self.stack.addWidget(self.page_home)
         self.stack.addWidget(self.page_profile)
         self.stack.addWidget(self.page_resume)
         self.stack.addWidget(self.page_job)
