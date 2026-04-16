@@ -1,6 +1,17 @@
 def build_resume_text(state):
     lines = []
 
+    if state.profile:
+        lines.append("【基本信息】")
+        name = state.profile.get("username", "")
+        contact = state.profile.get("contact", "")
+
+        if name:
+            lines.append(f"姓名: {name}")
+        if contact:
+            lines.append(f"联系方式: {contact}")
+        lines.append("")  # 加一个空行分隔
+
     if state.educations:
         lines.append("【教育经历】")
         for e in state.educations:

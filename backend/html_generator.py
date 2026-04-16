@@ -1,12 +1,25 @@
-# project/backend/html_generator.py
 import json
+import re
+
 
 def generate_html_from_json(json_str: str) -> str:
     try:
-        # 解析大模型返回的 JSON
-        data = json.loads(json_str)
-    except json.JSONDecodeError:
-        return "<h1>JSON 解析失败，请检查大模型输出格式</h1>"
+        # 容错提取：使用正则精准抓取大括号及内部的所有内容
+        match = re.search(r'\{.*\}', json_str, re.DOTALL)
+        if not match:
+            raise ValueError("未找到有效的 JSON 结构")
+
+        clean_json = match.group(0)
+        data = json.loads(clean_json)
+
+    except (json.JSONDecodeError, ValueError) as e:
+        return f"""
+        <div style="font-family: 'Microsoft YaHei'; padding: 40px; color: #721c24; background-color: #f8d7da; border: 1px solid #f5c6cb; border-radius: 8px;">
+            <h2 style="margin-top: 0;">⚠️ AI 简历生成格式异常</h2>
+            <p>大语言模型返回的数据格式不符合规范，无法渲染。请重新点击生成。</p>
+            <p><strong>错误信息：</strong> {str(e)}</p>
+        </div>
+        """
 
     # 提取数据
     info = data.get("personal_info", {})
@@ -14,65 +27,71 @@ def generate_html_from_json(json_str: str) -> str:
     experiences = data.get("experiences", [])
     skills = data.get("skills", [])
 
-    # 生成教育经历 HTML 片段
+    # ==========================================
+    # 核心优化 1：生成教育经历 HTML (使用 Table 布局，保证绝对对齐)
+    # ==========================================
     edu_html = ""
     for edu in educations:
         edu_html += f"""
-        <div class="item">
-            <div class="item-header">
-                <span class="item-title">{edu.get('school')} - {edu.get('major')}</span>
-                <span class="item-time">{edu.get('time')}</span>
-            </div>
-            <p>{edu.get('note')}</p>
-        </div>
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 5px;">
+            <tr>
+                <td align="left" style="font-weight: bold; font-size: 15px; color: #333;">{edu.get('school')}</td>
+                <td align="right" style="color: #666; font-size: 14px;">{edu.get('time')}</td>
+            </tr>
+            <tr>
+                <td align="left" style="font-style: italic; color: #555; padding-top: 3px;">{edu.get('major')}</td>
+                <td align="right"></td>
+            </tr>
+        </table>
+        <div style="color: #444; font-size: 14px; margin-bottom: 15px; line-height: 1.5;">{edu.get('note')}</div>
         """
 
-    # 生成项目经历 HTML 片段
+    # ==========================================
+    # 核心优化 2：生成项目经历 HTML (使用 Table 布局)
+    # ==========================================
     exp_html = ""
     for exp in experiences:
         exp_html += f"""
-        <div class="item">
-            <div class="item-header">
-                <span class="item-title">{exp.get('title')} ({exp.get('role')})</span>
-                <span class="item-time">{exp.get('time')}</span>
-            </div>
-            <p>{exp.get('desc')}</p>
-        </div>
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 5px; margin-top: 10px;">
+            <tr>
+                <td align="left" style="font-weight: bold; font-size: 15px; color: #333;">{exp.get('title')} &nbsp;|&nbsp; <span style="font-weight: normal; color: #666;">{exp.get('role')}</span></td>
+                <td align="right" style="color: #666; font-size: 14px;">{exp.get('time')}</td>
+            </tr>
+        </table>
+        <div style="color: #444; font-size: 14px; margin-bottom: 15px; line-height: 1.6;">{exp.get('desc')}</div>
         """
 
-    # 拼接完整的 HTML（内嵌 CSS 控制排版）
+    # ==========================================
+    # 核心优化 3：拼接完整的 HTML（专为 QTextDocument 优化的安全 CSS）
+    # ==========================================
     html_template = f"""
     <!DOCTYPE html>
     <html>
     <head>
         <meta charset="UTF-8">
         <style>
-            body {{ font-family: "Microsoft YaHei", sans-serif; color: #333; line-height: 1.6; margin: 40px; }}
-            .header {{ text-align: center; border-bottom: 2px solid #2c3e50; padding-bottom: 20px; margin-bottom: 20px; }}
-            .header h1 {{ margin: 0; font-size: 28px; color: #2c3e50; }}
-            .header p {{ margin: 5px 0 0 0; font-size: 14px; color: #666; }}
-            .section-title {{ font-size: 18px; color: #2c3e50; border-left: 4px solid #3498db; padding-left: 10px; margin-top: 30px; }}
-            .item {{ margin-bottom: 15px; }}
-            .item-header {{ display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 5px; }}
-            .item-time {{ color: #7f8c8d; font-weight: normal; font-size: 14px; float: right; }} /* 为了兼容更简单的 PDF 渲染引擎使用 float */
-            .item-title {{ display: inline-block; }}
-            .skills {{ background-color: #f8f9fa; padding: 10px; border-radius: 5px; }}
+            body {{ font-family: "Microsoft YaHei", "SimHei", sans-serif; padding: 20px 30px; background-color: #ffffff; }}
+            .resume-header {{ text-align: center; margin-bottom: 30px; border-bottom: 2px solid #2C3E50; padding-bottom: 15px; }}
+            .name {{ font-size: 32px; font-weight: bold; color: #2C3E50; margin: 0 0 10px 0; letter-spacing: 2px; }}
+            .contact {{ font-size: 14px; color: #555; margin: 0; }}
+            .section-title {{ font-size: 18px; font-weight: bold; color: #2C3E50; background-color: #ECF0F1; padding: 6px 12px; margin-top: 25px; margin-bottom: 15px; border-left: 4px solid #3498DB; }}
+            .skills-box {{ font-size: 14px; color: #444; line-height: 1.8; }}
         </style>
     </head>
     <body>
-        <div class="header">
-            <h1>{info.get('name', '姓名未填写')}</h1>
-            <p>意向：{info.get('intent', '未填写')} | 联系方式：{info.get('contact', '未填写')}</p>
+        <div class="resume-header">
+            <h1 class="name">{info.get('name', '未提供')}</h1>
+            <p class="contact">意向岗位：{info.get('intent', '未提供')} &nbsp;|&nbsp; 联系方式：{info.get('contact', '未提供')}</p>
         </div>
 
-        <h2 class="section-title">教育经历</h2>
+        <div class="section-title">教育背景</div>
         {edu_html}
 
-        <h2 class="section-title">项目/实习经历</h2>
+        <div class="section-title">核心经历</div>
         {exp_html}
 
-        <h2 class="section-title">专业技能</h2>
-        <div class="skills">
+        <div class="section-title">专业技能</div>
+        <div class="skills-box">
             {", ".join(skills)}
         </div>
     </body>

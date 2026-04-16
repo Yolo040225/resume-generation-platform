@@ -6,8 +6,6 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
-
-
 from PyQt5.QtWidgets import QFileDialog
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
@@ -80,7 +78,20 @@ class VersionManagePage(QWidget):
         if idx < 0 or idx >= len(self.state.versions):
             self.preview.clear()
             return
-        self.preview.setPlainText(self.state.versions[idx]["content"])
+
+        # 1. 获取数据库里的 JSON 字符串内容
+        json_content = self.state.versions[idx]["content"]
+
+        try:
+            # 2. 调用我们强大的 HTML 生成器，将 JSON 转为精美的 HTML
+            html_preview = generate_html_from_json(json_content)
+
+            # 3. 使用 setHtml 而不是 setPlainText，让 QTextEdit 渲染富文本样式
+            self.preview.setHtml(html_preview)
+
+        except Exception as e:
+            # 如果解析出错，显示一个友好的错误提示
+            self.preview.setPlainText(f"预览生成失败：{str(e)}\n原始数据：\n{json_content}")
 
     def delete_version(self):
         idx = self.list.currentRow()
