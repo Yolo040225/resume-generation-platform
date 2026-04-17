@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import (
     QComboBox, QPushButton, QTextEdit, QMessageBox, QApplication
 )
 from ui.state import AppState
-
+from datetime import datetime
 
 class ResumeGeneratePage(QWidget):
     def __init__(self, state: AppState):
@@ -20,8 +20,6 @@ class ResumeGeneratePage(QWidget):
         param_layout = QVBoxLayout()
 
         self.job_select = QComboBox()
-        self.template_select = QComboBox()
-        self.template_select.addItems(["默认模板", "简洁风格", "科技风格"])
 
         self.btn_refresh_jobs = QPushButton("刷新岗位列表")
         self.btn_generate = QPushButton("生成 / 优化简历")
@@ -34,8 +32,6 @@ class ResumeGeneratePage(QWidget):
         param_layout.addWidget(QLabel("目标岗位："))
         param_layout.addWidget(self.job_select)
         param_layout.addWidget(self.btn_refresh_jobs)
-        param_layout.addWidget(QLabel("简历模板："))
-        param_layout.addWidget(self.template_select)
         param_layout.addWidget(self.btn_generate)
         param_layout.addWidget(self.btn_save_version)
         param_layout.addStretch()
@@ -112,7 +108,6 @@ class ResumeGeneratePage(QWidget):
         QApplication.processEvents()
         idx = self.job_select.currentIndex()
         job = self.state.jobs[idx]
-        tpl = self.template_select.currentText()
 
         # 1️⃣ 构建结构化简历文本
         resume_text = build_resume_text(self.state)
@@ -155,11 +150,11 @@ class ResumeGeneratePage(QWidget):
             return
 
         job_label = self.job_select.currentText()
-        template = self.template_select.currentText()
+        save_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         add_resume_version({
             "job_label": job_label,
-            "template": template,
+            "template": save_time,
             "content": content  # 这里完美存入了 JSON
         })
 
