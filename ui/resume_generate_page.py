@@ -10,7 +10,26 @@ from PyQt5.QtWidgets import (
 )
 from ui.state import AppState
 from datetime import datetime
+from PyQt5.QtCore import QThread, pyqtSignal
 
+class ResumeGenerateWorker(QThread):
+    # 定义两个信号：成功返回 JSON 文本，失败返回错误字符串
+    finished_signal = pyqtSignal(str)
+    error_signal = pyqtSignal(str)
+
+    def __init__(self, prompt, temperature=0.4):
+        super().__init__()
+        self.prompt = prompt
+        self.temperature = temperature
+
+    def run(self):
+        try:
+            # 在子线程中执行耗时的 API 调用
+            from backend.llm_service import call_deepseek_chat
+            result_json = call_deepseek_chat(self.prompt, temperature=self.temperature)
+            self.finished_signal.emit(result_json)
+        except Exception as e:
+            self.error_signal.emit(str(e))
 class ResumeGeneratePage(QWidget):
     def __init__(self, state: AppState):
         super().__init__()
@@ -97,47 +116,54 @@ class ResumeGeneratePage(QWidget):
             for j in self.state.jobs:
                 self.job_select.addItem(f"{j['company']} - {j['title']}")
 
-    def generate_resume(self):  # 名字暂时不改，保持按钮连接不动
+    def generate_resume(self):
         if not self.state.jobs:
             QMessageBox.information(self, "提示", "请先保存至少一个岗位。")
             return
 
-        self.btn_generate.setEnabled(False)
-        self.btn_generate.setText("正在生成，请稍候...")
-        self.optimized_resume.setPlainText("正在调用大模型生成简历，请稍候...")
-        QApplication.processEvents()
+        # 1. 准备数据（这些是本地内存操作，非常快，留在主线程）
         idx = self.job_select.currentIndex()
         job = self.state.jobs[idx]
 
-        # 1️⃣ 构建结构化简历文本
+        # 构建结构化简历文本并同步显示到左侧预览
         resume_text = build_resume_text(self.state)
         self.original_resume.setPlainText(resume_text)
 
-        # 2️⃣ 读取岗位画像（如果你已有 profile 表，可改成数据库读取）
+        # 读取岗位画像并构建 Prompt
         job_profile = load_job_profile(job["id"])
-
-        # 3️⃣ 构建 Prompt
         prompt = build_prompt(resume_text, job_profile, job['title'], job["jd"])
-        print("\n===== PROMPT START =====")
-        print(prompt)
-        print("===== PROMPT END =====\n")
+
+        # 2. UI 状态切换（禁用按钮，显示等待文字）
+        self.btn_generate.setEnabled(False)
+        self.btn_generate.setText("正在生成，请稍候...")
+        self.optimized_resume.setPlainText("正在调用大模型进行简历深度重塑，此过程预计耗时 5-15 秒，主界面可正常拖动...")
+
+        # 3. 启动真实的异步线程
+        self.worker = ResumeGenerateWorker(prompt, temperature=0.4)
+        self.worker.finished_signal.connect(self.on_generate_success)
+        self.worker.error_signal.connect(self.on_generate_error)
+        self.worker.start()
+
+    # 4. 成功回调：渲染 HTML
+    def on_generate_success(self, result_json):
         try:
-            # 4️⃣ 调用 DeepSeek
-            result_json = call_deepseek_chat(prompt, temperature=0.4)
+            self.current_result_json = result_json  # 保存供“保存版本”功能使用
 
-            # 将原始 JSON 存入实例变量，供后续保存版本时使用
-            self.current_result_json = result_json
-
-            # 5️⃣ 转换为 HTML 并显示结果
             from backend.html_generator import generate_html_from_json
             preview_html = generate_html_from_json(result_json)
 
-            # 使用 setHtml 而不是 setPlainText 渲染富文本
-            self.optimized_resume.setHtml(preview_html)
-            QMessageBox.information(self, "生成成功", "简历已生成完毕！")
-
+            self.optimized_resume.setHtml(preview_html)  # 渲染富文本
+            QMessageBox.information(self, "生成成功", "简历已根据目标岗位完成定制化重塑！")
         except Exception as e:
-            QMessageBox.critical(self, "生成失败", str(e))
+            self.on_generate_error(f"解析渲染失败: {str(e)}")
+        finally:
+            self.btn_generate.setEnabled(True)
+            self.btn_generate.setText("生成 / 优化简历")
+
+    # 5. 失败回调：提示用户
+    def on_generate_error(self, err_msg):
+        QMessageBox.critical(self, "生成失败", f"大模型服务异常: {err_msg}")
+        self.optimized_resume.setPlainText(f"生成失败，错误信息：\n{err_msg}")
         self.btn_generate.setEnabled(True)
         self.btn_generate.setText("生成 / 优化简历")
 

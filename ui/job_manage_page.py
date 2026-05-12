@@ -6,8 +6,23 @@ from PyQt5.QtWidgets import (
     QPushButton, QVBoxLayout, QMessageBox
 )
 from ui.state import AppState
+from PyQt5.QtCore import QThread, pyqtSignal
 
 
+class JobParserWorker(QThread):
+    finished_signal = pyqtSignal(dict)
+    error_signal = pyqtSignal(str)
+
+    def __init__(self, jd_text):
+        super().__init__()
+        self.jd_text = jd_text
+
+    def run(self):
+        try:
+            profile = parse_job(self.jd_text)
+            self.finished_signal.emit(profile)
+        except Exception as e:
+            self.error_signal.emit(str(e))
 class JobManagePage(QWidget):
     def __init__(self, state: AppState):
         super().__init__()
@@ -60,62 +75,52 @@ class JobManagePage(QWidget):
             QMessageBox.warning(self, "提示", "公司名称、岗位名称、JD 不能为空。")
             return
 
-        # ===== 体验优化：添加等待状态，防止界面卡死 =====
         self.save_btn.setEnabled(False)
         self.save_btn.setText("大模型正在深度解析中，请稍候...")
         self.profile_display.setText("正在调用 DeepSeek 进行 JD 特征抽取...")
 
-        # 引入 QApplication 以强制刷新 UI
-        from PyQt5.QtWidgets import QApplication
-        QApplication.processEvents()
-
         try:
-            # 1️⃣ 保存原始岗位
-            add_job({
-                "company": company,
-                "title": title,
-                "jd": jd
-            })
-
-            # 2️⃣ 读取刚保存的岗位（取最后一个）
+            # 先保存原始岗位到数据库
+            add_job({"company": company, "title": title, "jd": jd})
             jobs = load_jobs()
-            job_id = jobs[-1]["id"]
+            self.current_job_id = jobs[-1]["id"]  # 存入实例变量供子线程回调使用
 
-            # 3️⃣ 岗位解析 (现在这里是走大模型了！)
-            profile = parse_job(jd)
-
-            # 4️⃣ 保存岗位画像
-            save_job_profile(job_id, profile)
-
-            # 5️⃣ 将解析结果写入展示区
-            display_text = (
-                "【大模型解析结果】\n"
-                f"岗位类型：{profile.get('job_category', '')}\n"
-                f"核心技能：{', '.join(profile.get('skills', [])) or '无'}\n"
-                f"学历要求：{profile.get('education_level', '')}\n"
-                f"经验要求：{profile.get('experience_years', '')}"
-            )
-            self.profile_display.setText(display_text)
-
-            QMessageBox.information(
-                self,
-                "保存成功",
-                "岗位已保存并由大模型完成解析，结果已在页面下方展示。"
-            )
-
-            # 清空输入框以便下次输入
-            self.company.clear()
-            self.title.clear()
-            self.jd.clear()
+            # 启动真实的异步线程
+            self.worker = JobParserWorker(jd)
+            self.worker.finished_signal.connect(self.on_parse_success)
+            self.worker.error_signal.connect(self.on_parse_error)
+            self.worker.start()
 
         except Exception as e:
-            QMessageBox.critical(self, "系统错误", f"保存或解析过程中发生错误: {str(e)}")
-            self.profile_display.setText("解析失败，请检查网络或大模型 API Key。")
-
-        finally:
-            # 无论成功失败，恢复按钮状态
+            QMessageBox.critical(self, "系统错误", f"保存岗位发生错误: {str(e)}")
             self.save_btn.setEnabled(True)
             self.save_btn.setText("保存岗位（后台自动解析）")
+
+    # 成功的回调函数
+    def on_parse_success(self, profile):
+        save_job_profile(self.current_job_id, profile)
+        display_text = (
+            "【大模型解析结果】\n"
+            f"岗位类型：{profile.get('job_category', '')}\n"
+            f"核心技能：{', '.join(profile.get('skills', [])) or '无'}\n"
+            f"学历要求：{profile.get('education_level', '')}\n"
+            f"经验要求：{profile.get('experience_years', '')}"
+        )
+        self.profile_display.setText(display_text)
+        QMessageBox.information(self, "保存成功", "岗位已保存并由大模型完成解析！")
+        self.company.clear()
+        self.title.clear()
+        self.jd.clear()
+
+        self.save_btn.setEnabled(True)
+        self.save_btn.setText("保存岗位（后台自动解析）")
+
+    # 失败的回调函数
+    def on_parse_error(self, err_msg):
+        QMessageBox.critical(self, "解析错误", f"大模型解析失败: {err_msg}")
+        self.profile_display.setText("解析失败，请检查网络或大模型 API Key。")
+        self.save_btn.setEnabled(True)
+        self.save_btn.setText("保存岗位（后台自动解析）")
 
 
 

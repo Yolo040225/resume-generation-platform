@@ -72,10 +72,10 @@ def generate_html_from_json(json_str: str) -> str:
         <style>
             body {{ font-family: "Microsoft YaHei", "SimHei", sans-serif; padding: 20px 30px; background-color: #ffffff; }}
             .resume-header {{ text-align: center; margin-bottom: 30px; border-bottom: 2px solid #2C3E50; padding-bottom: 15px; }}
-            .name {{ font-size: 32px; font-weight: bold; color: #2C3E50; margin: 0 0 10px 0; letter-spacing: 2px; }}
-            .contact {{ font-size: 14px; color: #555; margin: 0; }}
-            .section-title {{ font-size: 18px; font-weight: bold; color: #2C3E50; background-color: #ECF0F1; padding: 6px 12px; margin-top: 25px; margin-bottom: 15px; border-left: 4px solid #3498DB; }}
-            .skills-box {{ font-size: 14px; color: #444; line-height: 1.8; }}
+            .name {{ font-size: 24pt; font-weight: bold; color: #2C3E50; margin: 0 0 10px 0; letter-spacing: 2px; }}
+            .contact {{ font-size: 10.5pt; color: #555; margin: 0; }}
+            .section-title {{ font-size: 14pt; font-weight: bold; color: #2C3E50; background-color: #ECF0F1; padding: 6px 12px; margin-top: 25px; margin-bottom: 15px; border-left: 4px solid #3498DB; }}
+            .skills-box {{ font-size: 10pt; color: #444; line-height: 1.8; }}
         </style>
     </head>
     <body>

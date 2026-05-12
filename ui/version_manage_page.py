@@ -133,7 +133,7 @@ class VersionManagePage(QWidget):
             doc.setHtml(html_content)
 
             # 3. 设置 PDF 打印机参数
-            printer = QPrinter(QPrinter.HighResolution)
+            printer = QPrinter(QPrinter.ScreenResolution)
             printer.setOutputFormat(QPrinter.PdfFormat)
             printer.setOutputFileName(file_path)
 
