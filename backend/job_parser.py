@@ -29,7 +29,7 @@ def parse_job(jd_text: str) -> dict:
     """
 
     try:
-        # 这里的 temperature 设低一点 (比如 0.1)，保证抽取任务的确定性和格式的稳定性
+        #temperature低，保证抽取任务的确定性和格式的稳定性
         response_text = call_deepseek_chat(prompt, temperature=0.1)
 
         # 容错处理：清洗大模型可能返回的 Markdown 标记 (如 ```json ... ```)

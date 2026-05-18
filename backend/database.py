@@ -81,7 +81,7 @@ def init_db():
 def save_user_profile(profile: dict):
     """保存用户个人信息（只保留一条，重复则更新）"""
     conn = get_connection()
-    cur = conn.cursor()
+
 
     # 先清空，再插入（简单稳妥）
     cur.execute("DELETE FROM user_profile")

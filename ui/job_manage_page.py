@@ -85,7 +85,7 @@ class JobManagePage(QWidget):
             jobs = load_jobs()
             self.current_job_id = jobs[-1]["id"]  # 存入实例变量供子线程回调使用
 
-            # 启动真实的异步线程
+            # 启动异步线程
             self.worker = JobParserWorker(jd)
             self.worker.finished_signal.connect(self.on_parse_success)
             self.worker.error_signal.connect(self.on_parse_error)
