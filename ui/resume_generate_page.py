@@ -11,6 +11,9 @@ from PyQt5.QtWidgets import (
 from ui.state import AppState
 from datetime import datetime
 from PyQt5.QtCore import QThread, pyqtSignal
+import json
+from backend.database import load_job_profile
+from backend.resume_builder import build_resume_text
 
 class ResumeGenerateWorker(QThread):
     # 定义两个信号：成功返回 JSON 文本，失败返回错误字符串
@@ -48,9 +51,18 @@ class ResumeGeneratePage(QWidget):
         self.btn_generate.clicked.connect(self.generate_resume)
         self.btn_save_version.clicked.connect(self.save_version)
 
+        # 1. 创建风格选择下拉框
+        self.style_select = QComboBox()
+        self.style_select.addItems(["简洁商务风", "现代科技风", "极简学术风"])
+
         param_layout.addWidget(QLabel("目标岗位："))
         param_layout.addWidget(self.job_select)
         param_layout.addWidget(self.btn_refresh_jobs)
+
+        # 2. 把风格选择添加到界面中
+        param_layout.addWidget(QLabel("排版风格："))
+        param_layout.addWidget(self.style_select)
+
         param_layout.addWidget(self.btn_generate)
         param_layout.addWidget(self.btn_save_version)
         param_layout.addStretch()
@@ -147,10 +159,22 @@ class ResumeGeneratePage(QWidget):
     # 4. 成功回调：渲染 HTML
     def on_generate_success(self, result_json):
         try:
-            self.current_result_json = result_json  # 保存供“保存版本”功能使用
+            # 1. 解析大模型返回的原始 JSON 字符串
+            data = json.loads(result_json)
+
+            # 2. 强行把界面的设置塞入字典
+            data["ui_settings"] = {
+                "style": self.style_select.currentText(),
+                "photo": self.state.profile.get("photo", "")
+            }
+
+            # 3. 将注入后的字典重新转回 JSON 字符串，并保存（这样点击“保存为一个版本”时就会带上照片和风格）
+            self.current_result_json = json.dumps(data, ensure_ascii=False)
+            # ======================================
 
             from backend.html_generator import generate_html_from_json
-            preview_html = generate_html_from_json(result_json)
+            # 4. 把含有 ui_settings 的新 JSON 传给 HTML 生成器
+            preview_html = generate_html_from_json(self.current_result_json)
 
             self.optimized_resume.setHtml(preview_html)  # 渲染富文本
             QMessageBox.information(self, "生成成功", "简历已根据目标岗位完成定制化重塑！")

@@ -10,6 +10,7 @@ class AppState:
         "user_id": "",
         "gender": "",
         "contact": "",
+        "photo": ""
     })
 
     # 简历结构化信息

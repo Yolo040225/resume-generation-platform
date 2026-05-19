@@ -21,14 +21,82 @@ def generate_html_from_json(json_str: str) -> str:
         </div>
         """
 
-    # 提取数据
+    # 1. 提取基础数据
     info = data.get("personal_info", {})
     educations = data.get("educations", [])
     experiences = data.get("experiences", [])
     skills = data.get("skills", [])
 
+    # 2. 获取注入的 UI 设置 (照片和风格)
+    ui_settings = data.get("ui_settings", {})
+    style_name = ui_settings.get("style", "简洁商务风")
+    photo_path = ui_settings.get("photo", "")
+
     # ==========================================
-    # 核心优化 1：生成教育经历 HTML (使用 Table 布局，保证绝对对齐)
+    # 多套 CSS 风格定义
+    # ==========================================
+    if style_name == "现代科技风":
+        # 科技风：深蓝色主色调，线条犀利
+        css = """
+            body { font-family: "Microsoft YaHei", "SimHei", sans-serif; padding: 20px 30px; background-color: #ffffff; color: #333;}
+            .resume-header { margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #2980B9;}
+            .name { font-size: 26pt; font-weight: 800; color: #1A5276; margin: 0 0 10px 0; }
+            .contact { font-size: 11pt; color: #5D6D7E; margin: 0; }
+            .section-title { font-size: 15pt; font-weight: bold; color: #1A5276; border-bottom: 2px solid #2980B9; padding-bottom: 5px; margin-top: 20px; margin-bottom: 15px; }
+            .skills-box { font-size: 10.5pt; color: #154360; line-height: 1.8; background-color: #EAF2F8; padding: 10px; border-radius: 4px; }
+        """
+    elif style_name == "极简学术风":
+        # 学术风：纯黑白，衬线字体(宋体等)
+        css = """
+            body { font-family: "SimSun", "Times New Roman", serif; padding: 30px; background-color: #ffffff; color: #000; }
+            .resume-header { margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #000;}
+            .name { font-size: 24pt; font-weight: bold; color: #000; margin: 0 0 10px 0; letter-spacing: 4px; }
+            .contact { font-size: 10.5pt; color: #000; margin: 0; }
+            .section-title { font-size: 14pt; font-weight: bold; color: #000; text-align: center; background-color: #eee; padding: 4px; border: 1px solid #000; margin-top: 20px; margin-bottom: 15px; }
+            .skills-box { font-size: 10.5pt; color: #000; line-height: 1.8; }
+        """
+    else:
+        # 默认：简洁商务风 (你原本的样式，做了一点排版微调)
+        css = """
+            body { font-family: "Microsoft YaHei", "SimHei", sans-serif; padding: 20px 30px; background-color: #ffffff; }
+            .resume-header { margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #2C3E50;}
+            .name { font-size: 24pt; font-weight: bold; color: #2C3E50; margin: 0 0 10px 0; letter-spacing: 2px; }
+            .contact { font-size: 10.5pt; color: #555; margin: 0; }
+            .section-title { font-size: 14pt; font-weight: bold; color: #2C3E50; background-color: #ECF0F1; padding: 6px 12px; margin-top: 20px; margin-bottom: 15px; border-left: 4px solid #3498DB; }
+            .skills-box { font-size: 10pt; color: #444; line-height: 1.8; }
+        """
+
+    # ==========================================
+    # 动态组装头部 (带照片完美对齐方案)
+    # ==========================================
+    if photo_path:
+        # 如果有照片，使用不可见表格实现绝对的左右对齐布局
+        header_html = f"""
+        <div class="resume-header">
+            <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                    <td align="left" valign="middle">
+                        <h1 class="name">{info.get('name', '未提供')}</h1>
+                        <p class="contact">意向岗位：{info.get('intent', '未提供')} &nbsp;|&nbsp; 联系方式：{info.get('contact', '未提供')}</p>
+                    </td>
+                    <td align="right" valign="middle" width="100">
+                        <img src="{photo_path}" width="85" height="115" style="border: 1px solid #ccc;">
+                    </td>
+                </tr>
+            </table>
+        </div>
+        """
+    else:
+        # 如果没有照片，默认居中或左对齐显示
+        header_html = f"""
+        <div class="resume-header" style="text-align: center;">
+            <h1 class="name">{info.get('name', '未提供')}</h1>
+            <p class="contact">意向岗位：{info.get('intent', '未提供')} &nbsp;|&nbsp; 联系方式：{info.get('contact', '未提供')}</p>
+        </div>
+        """
+
+    # ==========================================
+    # 生成教育经历 HTML (保持 Table 绝对对齐)
     # ==========================================
     edu_html = ""
     for edu in educations:
@@ -47,7 +115,7 @@ def generate_html_from_json(json_str: str) -> str:
         """
 
     # ==========================================
-    # 核心优化 2：生成项目经历 HTML (使用 Table 布局)
+    # 生成项目经历 HTML (保持 Table 绝对对齐)
     # ==========================================
     exp_html = ""
     for exp in experiences:
@@ -62,7 +130,7 @@ def generate_html_from_json(json_str: str) -> str:
         """
 
     # ==========================================
-    # 核心优化 3：拼接完整的 HTML（专为 QTextDocument 优化的安全 CSS）
+    # 拼接最终的 HTML
     # ==========================================
     html_template = f"""
     <!DOCTYPE html>
@@ -70,19 +138,11 @@ def generate_html_from_json(json_str: str) -> str:
     <head>
         <meta charset="UTF-8">
         <style>
-            body {{ font-family: "Microsoft YaHei", "SimHei", sans-serif; padding: 20px 30px; background-color: #ffffff; }}
-            .resume-header {{ text-align: center; margin-bottom: 30px; border-bottom: 2px solid #2C3E50; padding-bottom: 15px; }}
-            .name {{ font-size: 24pt; font-weight: bold; color: #2C3E50; margin: 0 0 10px 0; letter-spacing: 2px; }}
-            .contact {{ font-size: 10.5pt; color: #555; margin: 0; }}
-            .section-title {{ font-size: 14pt; font-weight: bold; color: #2C3E50; background-color: #ECF0F1; padding: 6px 12px; margin-top: 25px; margin-bottom: 15px; border-left: 4px solid #3498DB; }}
-            .skills-box {{ font-size: 10pt; color: #444; line-height: 1.8; }}
+            {css}
         </style>
     </head>
     <body>
-        <div class="resume-header">
-            <h1 class="name">{info.get('name', '未提供')}</h1>
-            <p class="contact">意向岗位：{info.get('intent', '未提供')} &nbsp;|&nbsp; 联系方式：{info.get('contact', '未提供')}</p>
-        </div>
+        {header_html}
 
         <div class="section-title">教育背景</div>
         {edu_html}

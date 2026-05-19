@@ -20,7 +20,8 @@ def init_db():
         username TEXT,
         user_id TEXT,
         gender TEXT,
-        contact TEXT
+        contact TEXT,
+        photo TEXT
     )
     """)
     cur.execute("""
@@ -81,18 +82,18 @@ def init_db():
 def save_user_profile(profile: dict):
     """保存用户个人信息（只保留一条，重复则更新）"""
     conn = get_connection()
-
-
+    cur = conn.cursor()
     # 先清空，再插入（简单稳妥）
     cur.execute("DELETE FROM user_profile")
     cur.execute("""
-        INSERT INTO user_profile (username, user_id, gender, contact)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO user_profile (username, user_id, gender, contact, photo)
+        VALUES (?, ?, ?, ?, ?)
     """, (
         profile.get("username", ""),
         profile.get("user_id", ""),
         profile.get("gender", ""),
-        profile.get("contact", "")
+        profile.get("contact", ""),
+        profile.get("photo", "")
     ))
 
     conn.commit()
@@ -105,7 +106,7 @@ def load_user_profile() -> dict:
     cur = conn.cursor()
 
     cur.execute("""
-        SELECT username, user_id, gender, contact
+        SELECT username, user_id, gender, contact, photo
         FROM user_profile
         ORDER BY id DESC
         LIMIT 1
@@ -120,7 +121,8 @@ def load_user_profile() -> dict:
         "username": row[0],
         "user_id": row[1],
         "gender": row[2],
-        "contact": row[3]
+        "contact": row[3],
+        "photo": row[4] if len(row) > 4 else ""
     }
 def add_education(edu: dict):
     """新增一条教育经历"""
